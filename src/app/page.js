@@ -1,4 +1,4 @@
-import QrScanner from '@/components/Qrscanner';
+import QrScanner from '../components/Qrscanner.jsx';
 import Link from 'next/link';
 
 const Home = () => {
