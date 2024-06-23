@@ -1,11 +1,11 @@
-import Qrscanner from '@/components/Qrscanner';
+import QrScanner from '@/components/QrScanner';
 import Link from 'next/link';
 
 const Home = () => {
   return (
     <div>
       <h1>QR Code Scanner</h1>
-      <Qrscanner />
+      <QrScanner />
       <div className="project-github">
       <p>This project is in </p>
       <Link href="https://github.com/diegoperea20/Qr-Scanner">
