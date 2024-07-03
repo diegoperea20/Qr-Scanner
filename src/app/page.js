@@ -88,7 +88,7 @@ const Home = () => {
       setCurrentDeviceIndex((prevIndex) => (prevIndex + 1) % devices.length);
       setDeviceId(devices[(currentDeviceIndex + 1) % devices.length].deviceId);
     } else {
-      setError('No other camera is detected.');
+      setError('No other camera is detected or page reload');
     }
   };
 
