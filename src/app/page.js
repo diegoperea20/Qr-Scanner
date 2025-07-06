@@ -21,6 +21,7 @@ const Home = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [isDetectingDevices, setIsDetectingDevices] = useState(false);
+  const [isInitialDetection, setIsInitialDetection] = useState(true);
   const [stream, setStream] = useState(null);
 
   const handleDevices = (mediaDevices) =>
@@ -226,8 +227,10 @@ const Home = () => {
       try {
         setIsDetectingDevices(true);
 
-        // Detectar dispositivos primero
-        await detectDevices();
+        // Solo detectar dispositivos si no se han detectado antes
+        if (devices.length === 0) {
+          await detectDevices();
+        }
 
         // Intentar obtener permisos de cámara con diferentes estrategias
         let newStream;
@@ -342,8 +345,45 @@ const Home = () => {
   }, [isScanning]);
 
   useEffect(() => {
-    // Detectar dispositivos al cargar la página
-    detectDevices();
+    // Detectar dispositivos al cargar la página con múltiples estrategias
+    const detectDevicesOnLoad = async () => {
+      setIsInitialDetection(true);
+      try {
+        // Primera estrategia: intentar enumerar sin permisos
+        const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+        const videoDevices = mediaDevices.filter(
+          ({ kind }) => kind === "videoinput"
+        );
+
+        if (videoDevices.length > 0) {
+          handleDevices(mediaDevices);
+          setIsInitialDetection(false);
+          return;
+        }
+
+        // Segunda estrategia: si no hay dispositivos, intentar obtener permisos
+        try {
+          await navigator.mediaDevices.getUserMedia({ video: true });
+          const devicesAfterPermission =
+            await navigator.mediaDevices.enumerateDevices();
+          handleDevices(devicesAfterPermission);
+        } catch (permissionError) {
+          console.log(
+            "Permission not granted, but we can still detect devices"
+          );
+          // Tercera estrategia: intentar enumerar de todas formas
+          const devicesWithoutPermission =
+            await navigator.mediaDevices.enumerateDevices();
+          handleDevices(devicesWithoutPermission);
+        }
+      } catch (error) {
+        console.log("Could not enumerate devices:", error);
+      } finally {
+        setIsInitialDetection(false);
+      }
+    };
+
+    detectDevicesOnLoad();
   }, []);
 
   useEffect(() => {
@@ -378,16 +418,18 @@ const Home = () => {
               <button
                 className={`camera-btn ${isCameraOn ? "active" : ""}`}
                 onClick={toggleCamera}
-                disabled={isDetectingDevices}
+                disabled={isDetectingDevices || isInitialDetection}
               >
-                {isDetectingDevices
+                {isInitialDetection
                   ? "🔍 Detecting Cameras..."
+                  : isDetectingDevices
+                  ? "🔍 Starting Camera..."
                   : isCameraOn
                   ? "🛑 Stop Camera"
                   : "📷 Start Camera"}
               </button>
 
-              {devices.length > 1 && (
+              {devices.length > 1 && !isInitialDetection && (
                 <button
                   className={`switch-camera-btn ${
                     !isCameraOn ? "camera-off" : ""
