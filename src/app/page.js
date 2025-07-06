@@ -20,6 +20,7 @@ const Home = () => {
   const [isDragging, setIsDragging] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
+  const [isDetectingDevices, setIsDetectingDevices] = useState(false);
 
   const handleDevices = (mediaDevices) =>
     setDevices(mediaDevices.filter(({ kind }) => kind === "videoinput"));
@@ -129,7 +130,19 @@ const Home = () => {
     }
   };
 
-  const toggleCamera = () => {
+  const detectDevices = async () => {
+    setIsDetectingDevices(true);
+    try {
+      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+      handleDevices(mediaDevices);
+    } catch (error) {
+      console.log("Could not enumerate devices:", error);
+    } finally {
+      setIsDetectingDevices(false);
+    }
+  };
+
+  const toggleCamera = async () => {
     if (isCameraOn) {
       setIsCameraOn(false);
       setIsScanning(false);
@@ -139,15 +152,30 @@ const Home = () => {
         setSuccessMessage(null);
       }, 2000);
     } else {
-      setIsCameraOn(true);
-      setIsScanning(true);
-      setScanSuccess(false);
-      setSuccessMessage(
-        `📷 Camera ${currentDeviceIndex + 1} started - Ready to scan!`
-      );
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 2000);
+      try {
+        setIsDetectingDevices(true);
+        // Intentar obtener permisos de cámara
+        await navigator.mediaDevices.getUserMedia({ video: true });
+
+        // Detectar dispositivos después de obtener permisos
+        await detectDevices();
+
+        setIsCameraOn(true);
+        setIsScanning(true);
+        setScanSuccess(false);
+        setSuccessMessage(
+          `📷 Camera ${currentDeviceIndex + 1} started - Ready to scan!`
+        );
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 2000);
+      } catch (error) {
+        setError(
+          "Camera permission denied. Please allow camera access and try again."
+        );
+        console.log("Camera permission error:", error);
+        setIsDetectingDevices(false);
+      }
     }
     setError(null);
   };
@@ -198,7 +226,29 @@ const Home = () => {
   }, [isScanning]);
 
   useEffect(() => {
-    navigator.mediaDevices.enumerateDevices().then(handleDevices);
+    // Función para detectar dispositivos
+    const detectDevices = async () => {
+      try {
+        // Primero intentamos obtener permisos de cámara
+        await navigator.mediaDevices.getUserMedia({ video: true });
+        // Luego enumeramos los dispositivos
+        const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+        handleDevices(mediaDevices);
+      } catch (error) {
+        console.log(
+          "Camera permission not granted yet, but we can still detect devices"
+        );
+        // Si no tenemos permisos, intentamos enumerar de todas formas
+        try {
+          const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+          handleDevices(mediaDevices);
+        } catch (enumError) {
+          console.log("Could not enumerate devices:", enumError);
+        }
+      }
+    };
+
+    detectDevices();
   }, []);
 
   useEffect(() => {
@@ -226,14 +276,23 @@ const Home = () => {
               <button
                 className={`camera-btn ${isCameraOn ? "active" : ""}`}
                 onClick={toggleCamera}
+                disabled={isDetectingDevices}
               >
-                {isCameraOn ? "🛑 Stop Camera" : "📷 Start Camera"}
+                {isDetectingDevices 
+                  ? "🔍 Detecting Cameras..." 
+                  : isCameraOn 
+                    ? "🛑 Stop Camera" 
+                    : "📷 Start Camera"
+                }
               </button>
 
               {devices.length > 1 && (
                 <button
-                  className={`switch-camera-btn ${!isCameraOn ? 'camera-off' : ''}`}
+                  className={`switch-camera-btn ${
+                    !isCameraOn ? "camera-off" : ""
+                  }`}
                   onClick={switchCamera}
+                  disabled={isDetectingDevices}
                 >
                   🔄 Switch Camera ({currentDeviceIndex + 1}/{devices.length})
                 </button>
