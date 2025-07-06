@@ -21,9 +21,17 @@ const Home = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [isDetectingDevices, setIsDetectingDevices] = useState(false);
+  const [stream, setStream] = useState(null);
 
   const handleDevices = (mediaDevices) =>
     setDevices(mediaDevices.filter(({ kind }) => kind === "videoinput"));
+
+  const stopStream = () => {
+    if (stream) {
+      stream.getTracks().forEach((track) => track.stop());
+      setStream(null);
+    }
+  };
 
   const capture = () => {
     if (webcamRef.current && isScanning) {
@@ -105,25 +113,41 @@ const Home = () => {
     processFile(file);
   };
 
-  const switchCamera = () => {
+  const switchCamera = async () => {
     if (devices.length > 1) {
-      const nextIndex = (currentDeviceIndex + 1) % devices.length;
-      setCurrentDeviceIndex(nextIndex);
-      setDeviceId(devices[nextIndex].deviceId);
-      setError(null);
+      try {
+        // Detener el stream actual
+        stopStream();
 
-      if (isCameraOn) {
-        setSuccessMessage(`🔄 Switched to camera ${nextIndex + 1}`);
+        const nextIndex = (currentDeviceIndex + 1) % devices.length;
+        setCurrentDeviceIndex(nextIndex);
+        setDeviceId(devices[nextIndex].deviceId);
+        setError(null);
+
+        if (isCameraOn) {
+          // Si la cámara está encendida, iniciar el nuevo stream
+          try {
+            const newStream = await navigator.mediaDevices.getUserMedia({
+              video: { deviceId: { exact: devices[nextIndex].deviceId } },
+            });
+            setStream(newStream);
+            setSuccessMessage(`🔄 Switched to camera ${nextIndex + 1}`);
+          } catch (streamError) {
+            console.log("Error starting new stream:", streamError);
+            setError("Failed to switch camera. Please try again.");
+          }
+        } else {
+          setSuccessMessage(
+            `📷 Camera ${nextIndex + 1} selected (camera is off)`
+          );
+        }
+
         setTimeout(() => {
           setSuccessMessage(null);
         }, 2000);
-      } else {
-        setSuccessMessage(
-          `📷 Camera ${nextIndex + 1} selected (camera is off)`
-        );
-        setTimeout(() => {
-          setSuccessMessage(null);
-        }, 2000);
+      } catch (error) {
+        console.log("Error switching camera:", error);
+        setError("Failed to switch camera. Please try again.");
       }
     } else {
       setError("No other camera is detected.");
@@ -144,6 +168,8 @@ const Home = () => {
 
   const toggleCamera = async () => {
     if (isCameraOn) {
+      // Apagar la cámara
+      stopStream();
       setIsCameraOn(false);
       setIsScanning(false);
       setScanSuccess(false);
@@ -154,12 +180,16 @@ const Home = () => {
     } else {
       try {
         setIsDetectingDevices(true);
-        // Intentar obtener permisos de cámara
-        await navigator.mediaDevices.getUserMedia({ video: true });
 
-        // Detectar dispositivos después de obtener permisos
+        // Detectar dispositivos primero
         await detectDevices();
 
+        // Obtener permisos y stream de cámara
+        const newStream = await navigator.mediaDevices.getUserMedia({
+          video: deviceId ? { deviceId: { exact: deviceId } } : true,
+        });
+
+        setStream(newStream);
         setIsCameraOn(true);
         setIsScanning(true);
         setScanSuccess(false);
@@ -170,10 +200,10 @@ const Home = () => {
           setSuccessMessage(null);
         }, 2000);
       } catch (error) {
+        console.log("Camera permission error:", error);
         setError(
           "Camera permission denied. Please allow camera access and try again."
         );
-        console.log("Camera permission error:", error);
         setIsDetectingDevices(false);
       }
     }
@@ -213,7 +243,9 @@ const Home = () => {
     setError(null);
     setSuccessMessage(null);
     setScanSuccess(false);
-    setIsScanning(true);
+    if (isCameraOn) {
+      setIsScanning(true);
+    }
   };
 
   useEffect(() => {
@@ -226,28 +258,7 @@ const Home = () => {
   }, [isScanning]);
 
   useEffect(() => {
-    // Función para detectar dispositivos
-    const detectDevices = async () => {
-      try {
-        // Primero intentamos obtener permisos de cámara
-        await navigator.mediaDevices.getUserMedia({ video: true });
-        // Luego enumeramos los dispositivos
-        const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-        handleDevices(mediaDevices);
-      } catch (error) {
-        console.log(
-          "Camera permission not granted yet, but we can still detect devices"
-        );
-        // Si no tenemos permisos, intentamos enumerar de todas formas
-        try {
-          const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-          handleDevices(mediaDevices);
-        } catch (enumError) {
-          console.log("Could not enumerate devices:", enumError);
-        }
-      }
-    };
-
+    // Detectar dispositivos al cargar
     detectDevices();
   }, []);
 
@@ -256,6 +267,13 @@ const Home = () => {
       setDeviceId(devices[0].deviceId);
     }
   }, [devices]);
+
+  // Limpiar stream al desmontar
+  useEffect(() => {
+    return () => {
+      stopStream();
+    };
+  }, []);
 
   return (
     <div className="container">
@@ -278,12 +296,11 @@ const Home = () => {
                 onClick={toggleCamera}
                 disabled={isDetectingDevices}
               >
-                {isDetectingDevices 
-                  ? "🔍 Detecting Cameras..." 
-                  : isCameraOn 
-                    ? "🛑 Stop Camera" 
-                    : "📷 Start Camera"
-                }
+                {isDetectingDevices
+                  ? "🔍 Detecting Cameras..."
+                  : isCameraOn
+                  ? "🛑 Stop Camera"
+                  : "📷 Start Camera"}
               </button>
 
               {devices.length > 1 && (
