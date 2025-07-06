@@ -21,7 +21,7 @@ const Home = () => {
   const [isScanning, setIsScanning] = useState(false);
   const [scanSuccess, setScanSuccess] = useState(false);
   const [isDetectingDevices, setIsDetectingDevices] = useState(false);
-  const [isInitialDetection, setIsInitialDetection] = useState(true);
+  const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [stream, setStream] = useState(null);
 
   const handleDevices = (mediaDevices) =>
@@ -119,6 +119,41 @@ const Home = () => {
     processFile(file);
   };
 
+  const detectDevicesOnUserInteraction = async () => {
+    if (!hasUserInteracted && devices.length === 0) {
+      setHasUserInteracted(true);
+      setIsDetectingDevices(true);
+
+      try {
+        // Intentar obtener permisos de cámara para detectar dispositivos
+        const tempStream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1, height: 1 },
+        });
+
+        // Detener el stream temporal inmediatamente
+        tempStream.getTracks().forEach((track) => track.stop());
+
+        // Ahora enumerar dispositivos
+        const mediaDevices = await navigator.mediaDevices.enumerateDevices();
+        handleDevices(mediaDevices);
+
+        if (
+          mediaDevices.filter(({ kind }) => kind === "videoinput").length > 0
+        ) {
+          setSuccessMessage("📷 Cameras detected successfully!");
+          setTimeout(() => {
+            setSuccessMessage(null);
+          }, 2000);
+        }
+      } catch (error) {
+        console.log("Could not detect devices:", error);
+        setError("Could not detect cameras. Please allow camera access.");
+      } finally {
+        setIsDetectingDevices(false);
+      }
+    }
+  };
+
   const switchCamera = async () => {
     if (devices.length > 1) {
       try {
@@ -203,15 +238,6 @@ const Home = () => {
     }
   };
 
-  const detectDevices = async () => {
-    try {
-      const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-      handleDevices(mediaDevices);
-    } catch (error) {
-      console.log("Could not enumerate devices:", error);
-    }
-  };
-
   const toggleCamera = async () => {
     if (isCameraOn) {
       // Apagar cámara inmediatamente
@@ -227,9 +253,9 @@ const Home = () => {
       try {
         setIsDetectingDevices(true);
 
-        // Solo detectar dispositivos si no se han detectado antes
+        // Intentar detectar dispositivos si no se han detectado
         if (devices.length === 0) {
-          await detectDevices();
+          await detectDevicesOnUserInteraction();
         }
 
         // Intentar obtener permisos de cámara con diferentes estrategias
@@ -345,48 +371,6 @@ const Home = () => {
   }, [isScanning]);
 
   useEffect(() => {
-    // Detectar dispositivos al cargar la página con múltiples estrategias
-    const detectDevicesOnLoad = async () => {
-      setIsInitialDetection(true);
-      try {
-        // Primera estrategia: intentar enumerar sin permisos
-        const mediaDevices = await navigator.mediaDevices.enumerateDevices();
-        const videoDevices = mediaDevices.filter(
-          ({ kind }) => kind === "videoinput"
-        );
-
-        if (videoDevices.length > 0) {
-          handleDevices(mediaDevices);
-          setIsInitialDetection(false);
-          return;
-        }
-
-        // Segunda estrategia: si no hay dispositivos, intentar obtener permisos
-        try {
-          await navigator.mediaDevices.getUserMedia({ video: true });
-          const devicesAfterPermission =
-            await navigator.mediaDevices.enumerateDevices();
-          handleDevices(devicesAfterPermission);
-        } catch (permissionError) {
-          console.log(
-            "Permission not granted, but we can still detect devices"
-          );
-          // Tercera estrategia: intentar enumerar de todas formas
-          const devicesWithoutPermission =
-            await navigator.mediaDevices.enumerateDevices();
-          handleDevices(devicesWithoutPermission);
-        }
-      } catch (error) {
-        console.log("Could not enumerate devices:", error);
-      } finally {
-        setIsInitialDetection(false);
-      }
-    };
-
-    detectDevicesOnLoad();
-  }, []);
-
-  useEffect(() => {
     if (devices.length > 0) {
       setDeviceId(devices[0].deviceId);
     }
@@ -400,7 +384,7 @@ const Home = () => {
   }, []);
 
   return (
-    <div className="container">
+    <div className="container" onClick={detectDevicesOnUserInteraction}>
       <div className="main-content">
         <header className="app-header">
           <h1 className="app-title">
@@ -418,18 +402,16 @@ const Home = () => {
               <button
                 className={`camera-btn ${isCameraOn ? "active" : ""}`}
                 onClick={toggleCamera}
-                disabled={isDetectingDevices || isInitialDetection}
+                disabled={isDetectingDevices}
               >
-                {isInitialDetection
-                  ? "🔍 Detecting Cameras..."
-                  : isDetectingDevices
+                {isDetectingDevices
                   ? "🔍 Starting Camera..."
                   : isCameraOn
                   ? "🛑 Stop Camera"
                   : "📷 Start Camera"}
               </button>
 
-              {devices.length > 1 && !isInitialDetection && (
+              {devices.length > 1 && (
                 <button
                   className={`switch-camera-btn ${
                     !isCameraOn ? "camera-off" : ""
