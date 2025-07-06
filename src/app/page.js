@@ -26,10 +26,15 @@ const Home = () => {
   const handleDevices = (mediaDevices) =>
     setDevices(mediaDevices.filter(({ kind }) => kind === "videoinput"));
 
-  const stopStream = () => {
+  const stopCamera = () => {
     if (stream) {
-      stream.getTracks().forEach((track) => track.stop());
+      stream.getTracks().forEach((track) => {
+        track.stop();
+      });
       setStream(null);
+    }
+    if (webcamRef.current) {
+      webcamRef.current = null;
     }
   };
 
@@ -116,8 +121,10 @@ const Home = () => {
   const switchCamera = async () => {
     if (devices.length > 1) {
       try {
-        // Detener el stream actual
-        stopStream();
+        // Detener cámara actual si está encendida
+        if (isCameraOn) {
+          stopCamera();
+        }
 
         const nextIndex = (currentDeviceIndex + 1) % devices.length;
         setCurrentDeviceIndex(nextIndex);
@@ -125,7 +132,7 @@ const Home = () => {
         setError(null);
 
         if (isCameraOn) {
-          // Si la cámara está encendida, iniciar el nuevo stream
+          // Reiniciar cámara con nuevo dispositivo
           try {
             const newStream = await navigator.mediaDevices.getUserMedia({
               video: { deviceId: { exact: devices[nextIndex].deviceId } },
@@ -135,6 +142,8 @@ const Home = () => {
           } catch (streamError) {
             console.log("Error starting new stream:", streamError);
             setError("Failed to switch camera. Please try again.");
+            setIsCameraOn(false);
+            setIsScanning(false);
           }
         } else {
           setSuccessMessage(
@@ -155,21 +164,18 @@ const Home = () => {
   };
 
   const detectDevices = async () => {
-    setIsDetectingDevices(true);
     try {
       const mediaDevices = await navigator.mediaDevices.enumerateDevices();
       handleDevices(mediaDevices);
     } catch (error) {
       console.log("Could not enumerate devices:", error);
-    } finally {
-      setIsDetectingDevices(false);
     }
   };
 
   const toggleCamera = async () => {
     if (isCameraOn) {
-      // Apagar la cámara
-      stopStream();
+      // Apagar cámara inmediatamente
+      stopCamera();
       setIsCameraOn(false);
       setIsScanning(false);
       setScanSuccess(false);
@@ -181,15 +187,16 @@ const Home = () => {
       try {
         setIsDetectingDevices(true);
 
-        // Detectar dispositivos primero
-        await detectDevices();
-
-        // Obtener permisos y stream de cámara
+        // Intentar obtener permisos de cámara
         const newStream = await navigator.mediaDevices.getUserMedia({
           video: deviceId ? { deviceId: { exact: deviceId } } : true,
         });
 
         setStream(newStream);
+
+        // Detectar dispositivos después de obtener permisos
+        await detectDevices();
+
         setIsCameraOn(true);
         setIsScanning(true);
         setScanSuccess(false);
@@ -204,6 +211,7 @@ const Home = () => {
         setError(
           "Camera permission denied. Please allow camera access and try again."
         );
+      } finally {
         setIsDetectingDevices(false);
       }
     }
@@ -258,7 +266,7 @@ const Home = () => {
   }, [isScanning]);
 
   useEffect(() => {
-    // Detectar dispositivos al cargar
+    // Detectar dispositivos al cargar la página
     detectDevices();
   }, []);
 
@@ -271,7 +279,7 @@ const Home = () => {
   // Limpiar stream al desmontar
   useEffect(() => {
     return () => {
-      stopStream();
+      stopCamera();
     };
   }, []);
 
@@ -324,6 +332,7 @@ const Home = () => {
                   screenshotFormat="image/jpeg"
                   videoConstraints={{ deviceId }}
                   className="camera-video"
+                  key={deviceId} // Forzar re-render cuando cambia deviceId
                 />
                 {(isScanning || scanSuccess) && (
                   <div className="scanning-overlay">
