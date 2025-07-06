@@ -121,29 +121,68 @@ const Home = () => {
   const switchCamera = async () => {
     if (devices.length > 1) {
       try {
+        const nextIndex = (currentDeviceIndex + 1) % devices.length;
+        const nextDeviceId = devices[nextIndex].deviceId;
+
         // Detener cámara actual si está encendida
         if (isCameraOn) {
           stopCamera();
+          // Pequeña pausa para asegurar que el stream anterior se detenga completamente
+          await new Promise((resolve) => setTimeout(resolve, 100));
         }
 
-        const nextIndex = (currentDeviceIndex + 1) % devices.length;
         setCurrentDeviceIndex(nextIndex);
-        setDeviceId(devices[nextIndex].deviceId);
+        setDeviceId(nextDeviceId);
         setError(null);
 
         if (isCameraOn) {
           // Reiniciar cámara con nuevo dispositivo
           try {
-            const newStream = await navigator.mediaDevices.getUserMedia({
-              video: { deviceId: { exact: devices[nextIndex].deviceId } },
-            });
+            // Intentar con constraints específicos primero
+            let newStream;
+            try {
+              newStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  deviceId: { exact: nextDeviceId },
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                },
+              });
+            } catch (specificError) {
+              // Si falla, intentar con constraints más flexibles
+              console.log(
+                "Specific deviceId failed, trying flexible constraints"
+              );
+              newStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  deviceId: nextDeviceId,
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                },
+              });
+            }
+
             setStream(newStream);
             setSuccessMessage(`🔄 Switched to camera ${nextIndex + 1}`);
           } catch (streamError) {
             console.log("Error starting new stream:", streamError);
-            setError("Failed to switch camera. Please try again.");
-            setIsCameraOn(false);
-            setIsScanning(false);
+
+            // Intentar con constraints básicos como último recurso
+            try {
+              const fallbackStream = await navigator.mediaDevices.getUserMedia({
+                video: true,
+              });
+              setStream(fallbackStream);
+              setSuccessMessage(
+                `🔄 Switched to camera ${nextIndex + 1} (fallback mode)`
+              );
+            } catch (fallbackError) {
+              console.log("Fallback also failed:", fallbackError);
+              setError("Failed to switch camera. Please try again.");
+              setIsCameraOn(false);
+              setIsScanning(false);
+              return;
+            }
           }
         } else {
           setSuccessMessage(
@@ -187,16 +226,53 @@ const Home = () => {
       try {
         setIsDetectingDevices(true);
 
-        // Intentar obtener permisos de cámara
-        const newStream = await navigator.mediaDevices.getUserMedia({
-          video: deviceId ? { deviceId: { exact: deviceId } } : true,
-        });
-
-        setStream(newStream);
-
-        // Detectar dispositivos después de obtener permisos
+        // Detectar dispositivos primero
         await detectDevices();
 
+        // Intentar obtener permisos de cámara con diferentes estrategias
+        let newStream;
+        try {
+          // Intentar con deviceId específico si está disponible
+          if (deviceId) {
+            try {
+              newStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  deviceId: { exact: deviceId },
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                },
+              });
+            } catch (specificError) {
+              // Si falla con exact, intentar sin exact
+              newStream = await navigator.mediaDevices.getUserMedia({
+                video: {
+                  deviceId: deviceId,
+                  width: { ideal: 1280 },
+                  height: { ideal: 720 },
+                },
+              });
+            }
+          } else {
+            // Si no hay deviceId, usar constraints básicos
+            newStream = await navigator.mediaDevices.getUserMedia({
+              video: {
+                width: { ideal: 1280 },
+                height: { ideal: 720 },
+              },
+            });
+          }
+        } catch (streamError) {
+          // Fallback a constraints básicos
+          console.log(
+            "Specific constraints failed, trying basic video:",
+            streamError
+          );
+          newStream = await navigator.mediaDevices.getUserMedia({
+            video: true,
+          });
+        }
+
+        setStream(newStream);
         setIsCameraOn(true);
         setIsScanning(true);
         setScanSuccess(false);
