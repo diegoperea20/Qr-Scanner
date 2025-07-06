@@ -89,10 +89,23 @@ const Home = () => {
             canvas.height
           );
 
+          // --- PRIMERO INTENTAR CON jsQR ---
+          const code = jsQR(imageData.data, imageData.width, imageData.height);
+          if (code && code.data) {
+            setQrData(code.data);
+            setError(null);
+            setSuccessMessage("🎉 QR Code successfully scanned from image!");
+            setTimeout(() => {
+              setSuccessMessage(null);
+            }, 3000);
+            window.open(code.data, "_blank");
+            return;
+          }
+
+          // --- SI FALLA, INTENTAR CON qrcode-reader ---
           const qr = new QrCode();
           qr.callback = (err, result) => {
-            if (err) {
-              console.error(err);
+            if (err || !result) {
               setError("QR code could not be detected in the image.");
               setSuccessMessage(null);
               return;
@@ -100,7 +113,6 @@ const Home = () => {
             setQrData(result.result);
             setError(null);
             setSuccessMessage("🎉 QR Code successfully scanned from image!");
-            // Auto-hide success message after 3 seconds
             setTimeout(() => {
               setSuccessMessage(null);
             }, 3000);
