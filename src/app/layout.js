@@ -1,27 +1,22 @@
 import { Inter } from "next/font/google";
 import "./globals.css";
-import Footer from '@/components/Footer';
 
 const inter = Inter({ subsets: ["latin"] });
 
 export const metadata = {
-  title: "Qr Scanner",
-  description: "Qr Scanner online",
+  title: "QR Scanner",
+  description:
+    "QR Scanner online - Scan QR codes with your camera or upload images",
   creator: "Diego Ivan Perea Montealegre",
-      icons: {
-    icon: './icon.ico', // Ruta correcta del ícono
-  },   
+  icons: {
+    icon: "./icon.ico",
+  },
 };
 
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={inter.className}>
-        <div className="container">
-          <main className="main-content">{children}</main>
-          <Footer />
-        </div>
-      </body>
+      <body className={inter.className}>{children}</body>
     </html>
   );
 }

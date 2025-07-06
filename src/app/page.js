@@ -1,45 +1,55 @@
 "use client";
 //import QrScanner from "@/components/QrScanner";
-import Link from 'next/link';
+import Link from "next/link";
 
-
-import React, { useRef, useEffect, useState } from 'react';
-import Webcam from 'react-webcam';
-import jsQR from 'jsqr';
-import QrCode from 'qrcode-reader';
-
+import React, { useRef, useEffect, useState } from "react";
+import Webcam from "react-webcam";
+import jsQR from "jsqr";
+import QrCode from "qrcode-reader";
 
 const Home = () => {
   const webcamRef = useRef(null);
   const [qrData, setQrData] = useState(null);
   const [isCameraOn, setIsCameraOn] = useState(false);
   const [error, setError] = useState(null);
+  const [successMessage, setSuccessMessage] = useState(null);
   const [deviceId, setDeviceId] = useState(null);
   const [devices, setDevices] = useState([]);
   const [currentDeviceIndex, setCurrentDeviceIndex] = useState(0);
   const fileInputRef = useRef(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isScanning, setIsScanning] = useState(false);
+  const [scanSuccess, setScanSuccess] = useState(false);
 
-  const handleDevices = mediaDevices =>
+  const handleDevices = (mediaDevices) =>
     setDevices(mediaDevices.filter(({ kind }) => kind === "videoinput"));
 
   const capture = () => {
-    if (webcamRef.current) {
+    if (webcamRef.current && isScanning) {
       const imageSrc = webcamRef.current.getScreenshot();
       if (imageSrc) {
         const image = new Image();
         image.src = imageSrc;
         image.onload = () => {
-          const canvas = document.createElement('canvas');
+          const canvas = document.createElement("canvas");
           canvas.width = image.width;
           canvas.height = image.height;
-          const ctx = canvas.getContext('2d');
+          const ctx = canvas.getContext("2d");
           ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
           const code = jsQR(imageData.data, imageData.width, imageData.height);
           if (code) {
             setQrData(code.data);
-            window.open(code.data, '_blank');
+            setIsScanning(false);
+            setScanSuccess(true);
+            setSuccessMessage("🎉 QR Code successfully scanned!");
+            setError(null);
+            // Auto-hide success message after 3 seconds
+            setTimeout(() => {
+              setSuccessMessage(null);
+              setScanSuccess(false);
+            }, 3000);
+            window.open(code.data, "_blank");
           }
         };
       }
@@ -52,23 +62,34 @@ const Home = () => {
       reader.onload = (e) => {
         const img = new Image();
         img.onload = () => {
-          const canvas = document.createElement('canvas');
-          const context = canvas.getContext('2d');
+          const canvas = document.createElement("canvas");
+          const context = canvas.getContext("2d");
           canvas.width = img.width;
           canvas.height = img.height;
           context.drawImage(img, 0, 0, img.width, img.height);
-          const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
-          
+          const imageData = context.getImageData(
+            0,
+            0,
+            canvas.width,
+            canvas.height
+          );
+
           const qr = new QrCode();
           qr.callback = (err, result) => {
             if (err) {
               console.error(err);
-              setError('QR code could not be detected in the image.');
+              setError("QR code could not be detected in the image.");
+              setSuccessMessage(null);
               return;
             }
             setQrData(result.result);
             setError(null);
-            window.open(result.result, '_blank');
+            setSuccessMessage("🎉 QR Code successfully scanned from image!");
+            // Auto-hide success message after 3 seconds
+            setTimeout(() => {
+              setSuccessMessage(null);
+            }, 3000);
+            window.open(result.result, "_blank");
           };
           qr.decode(imageData);
         };
@@ -85,11 +106,38 @@ const Home = () => {
 
   const switchCamera = () => {
     if (devices.length > 1) {
-      setCurrentDeviceIndex((prevIndex) => (prevIndex + 1) % devices.length);
-      setDeviceId(devices[(currentDeviceIndex + 1) % devices.length].deviceId);
+      const nextIndex = (currentDeviceIndex + 1) % devices.length;
+      setCurrentDeviceIndex(nextIndex);
+      setDeviceId(devices[nextIndex].deviceId);
+      setError(null);
+      setSuccessMessage(`🔄 Switched to camera ${nextIndex + 1}`);
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 2000);
     } else {
-      setError('No other camera is detected or page reload');
+      setError("No other camera is detected.");
     }
+  };
+
+  const toggleCamera = () => {
+    if (isCameraOn) {
+      setIsCameraOn(false);
+      setIsScanning(false);
+      setScanSuccess(false);
+      setSuccessMessage("📷 Camera stopped");
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 2000);
+    } else {
+      setIsCameraOn(true);
+      setIsScanning(true);
+      setScanSuccess(false);
+      setSuccessMessage("📷 Camera started - Ready to scan!");
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 2000);
+    }
+    setError(null);
   };
 
   const handleDragEnter = (e) => {
@@ -113,21 +161,29 @@ const Home = () => {
     e.preventDefault();
     e.stopPropagation();
     setIsDragging(false);
-    
+
     const files = e.dataTransfer.files;
     if (files && files.length > 0) {
       processFile(files[0]);
     }
   };
 
+  const resetScanner = () => {
+    setQrData(null);
+    setError(null);
+    setSuccessMessage(null);
+    setScanSuccess(false);
+    setIsScanning(true);
+  };
+
   useEffect(() => {
-    if (isCameraOn) {
+    if (isScanning) {
       const interval = setInterval(() => {
         capture();
       }, 500);
       return () => clearInterval(interval);
     }
-  }, [isCameraOn]);
+  }, [isScanning]);
 
   useEffect(() => {
     navigator.mediaDevices.enumerateDevices().then(handleDevices);
@@ -139,64 +195,172 @@ const Home = () => {
     }
   }, [devices]);
 
-
-
   return (
-    <div>
-      <h1>QR Code Scanner</h1>
-      <div className='div-center'>
-      <button onClick={() => setIsCameraOn(prev => !prev)}>
-        {isCameraOn ? 'Turn off camera' : 'Turn on Camera'}
-      </button>
-      {isCameraOn && (
-        <>
-          <button onClick={switchCamera}>Change Camera</button>
-          <Webcam
-            audio={false}
-            ref={webcamRef}
-            screenshotFormat="image/jpeg"
-            videoConstraints={{ deviceId }}
-            width="500px"
-            height="auto"
-          />
-        </>
-      )}
-      <div 
-        className={`file-upload-container ${isDragging ? 'dragging' : ''}`}
-        onDragEnter={handleDragEnter}
-        onDragOver={handleDragOver}
-        onDragLeave={handleDragLeave}
-        onDrop={handleDrop}
-      >
-        <input 
-          type="file" 
-          accept="image/*" 
-          onChange={handleFileUpload}
-          ref={fileInputRef}
-          style={{ display: 'none' }}
-        />
-        <button onClick={() => fileInputRef.current.click()}>
-          Select File
-        </button>
-        <p>or Drag files here</p>
-      </div>
-      {error && <p style={{color: 'red'}}>{error}</p>}
-      {qrData && (
-        <div>
-          <h3>QR code detected:</h3>
-          <a className="link-qr" href={qrData} target="_blank" rel="noopener noreferrer">
-            {qrData}
-          </a>
+    <div className="container">
+      <div className="main-content">
+        <header className="app-header">
+          <h1 className="app-title">
+            <span className="qr-icon">📱</span>
+            QR Code Scanner
+          </h1>
+          <p className="app-subtitle">
+            Scan QR codes with your camera or upload images
+          </p>
+        </header>
+
+        <div className="scanner-container">
+          <div className="camera-section">
+            <div className="camera-controls">
+              <button
+                className={`camera-btn ${isCameraOn ? "active" : ""}`}
+                onClick={toggleCamera}
+              >
+                {isCameraOn ? "🛑 Stop Camera" : "📷 Start Camera"}
+              </button>
+
+              {devices.length > 1 && (
+                <button
+                  className="switch-camera-btn"
+                  onClick={switchCamera}
+                  disabled={!isCameraOn}
+                >
+                  🔄 Switch Camera ({currentDeviceIndex + 1}/{devices.length})
+                </button>
+              )}
+            </div>
+
+            {isCameraOn && (
+              <div className="camera-view">
+                <Webcam
+                  audio={false}
+                  ref={webcamRef}
+                  screenshotFormat="image/jpeg"
+                  videoConstraints={{ deviceId }}
+                  className="camera-video"
+                />
+                {(isScanning || scanSuccess) && (
+                  <div className="scanning-overlay">
+                    <div className="scanning-indicator">
+                      {scanSuccess ? (
+                        <>
+                          <div className="success-line"></div>
+                          <p className="success-text">
+                            🎉 QR Code Successfully Scanned!
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="scanning-line"></div>
+                          <p>Scanning for QR codes...</p>
+                        </>
+                      )}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="upload-section">
+            <div
+              className={`file-upload-container ${
+                isDragging ? "dragging" : ""
+              }`}
+              onDragEnter={handleDragEnter}
+              onDragOver={handleDragOver}
+              onDragLeave={handleDragLeave}
+              onDrop={handleDrop}
+            >
+              <div className="upload-icon">📁</div>
+              <input
+                type="file"
+                accept="image/*"
+                onChange={handleFileUpload}
+                ref={fileInputRef}
+                style={{ display: "none" }}
+              />
+              <button
+                className="upload-btn"
+                onClick={() => fileInputRef.current.click()}
+              >
+                Select Image File
+              </button>
+              <p className="upload-text">or drag and drop an image here</p>
+            </div>
+          </div>
+
+          {successMessage && !scanSuccess && (
+            <div className="success-message">
+              <span className="success-icon">✅</span>
+              {successMessage}
+            </div>
+          )}
+
+          {error && (
+            <div className="error-message">
+              <span className="error-icon">⚠️</span>
+              {error}
+            </div>
+          )}
+
+          {qrData && (
+            <div className="result-section">
+              <h3 className="result-title">
+                <span className="success-icon">✅</span>
+                QR Code Detected!
+              </h3>
+              <div className="result-content">
+                <a
+                  className="qr-link"
+                  href={qrData}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {qrData}
+                </a>
+                <button className="reset-btn" onClick={resetScanner}>
+                  🔄 Scan Another
+                </button>
+              </div>
+            </div>
+          )}
         </div>
-      )}
-    </div>
-      {/* <QrScanner /> */}
-      <div className="project-github">
-      <p>This project is in </p>
-      <Link href="https://github.com/diegoperea20/Qr-Scanner">
-        <img width="96" height="96" src="https://img.icons8.com/fluency/96/github.png" alt="github"/>
-      </Link>
-    </div>
+      </div>
+
+      <footer className="project-github">
+        <div className="footer-content">
+          <div className="footer-section">
+            <p>This project is on GitHub</p>
+            <a
+              href="https://github.com/diegoperea20/Qr-Scanner"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="github-link"
+            >
+              <img
+                width="48"
+                height="48"
+                src="https://img.icons8.com/fluency/96/github.png"
+                alt="GitHub"
+                className="github-icon"
+              />
+            </a>
+          </div>
+          <div className="footer-section">
+            <p className="created-by">
+              Created by{" "}
+              <a
+                href="https://github.com/diegoperea20"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="author-link"
+              >
+                Diego Ivan Perea Montealegre
+              </a>
+            </p>
+          </div>
+        </div>
+      </footer>
     </div>
   );
 };
