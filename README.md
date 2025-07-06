@@ -6,23 +6,18 @@ Qr Scanner where you can scan with the camera (change camera) and be redirected 
 
 
 <p align="center">
-  <img src="README-images/homeqr.PNG" alt="Step1">
-</p>
-
-With Camera
-<p align="center">
-  <img src="README-images/qrscaned1.PNG" alt="Step2">
+  <img src="README-images/home.png" alt="Step1">
 </p>
 
 <p align="center">
-  <img src="README-images/qrscaned2.PNG" alt="Step3">
+  <img src="README-images/camera.png" alt="Step5">
 </p>
-
-With Select file or Drag files
 
 <p align="center">
-  <img src="README-images/fileqronly.PNG" alt="Step4">
+  <img src="README-images/scanned.png" alt="Step5">
 </p>
+
+
 
 <p align="center">
   <img src="README-images/github-qr.png" alt="Step5">
