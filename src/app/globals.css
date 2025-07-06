@@ -320,6 +320,19 @@ button:disabled::before {
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
 }
 
+/* Estilo para el botón de cambiar cámara cuando la cámara está apagada */
+.switch-camera-btn.camera-off {
+  background: linear-gradient(135deg, #ffa726, #ff9800);
+  box-shadow: 0 4px 15px rgba(255, 167, 38, 0.3);
+  opacity: 0.8;
+}
+
+.switch-camera-btn.camera-off:hover {
+  background: linear-gradient(135deg, #ff9800, #f57c00);
+  box-shadow: 0 6px 20px rgba(255, 167, 38, 0.4);
+  opacity: 1;
+}
+
 .upload-btn {
   background: linear-gradient(135deg, #667eea, #764ba2);
   box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);

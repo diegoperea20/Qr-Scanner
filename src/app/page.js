@@ -110,10 +110,20 @@ const Home = () => {
       setCurrentDeviceIndex(nextIndex);
       setDeviceId(devices[nextIndex].deviceId);
       setError(null);
-      setSuccessMessage(`🔄 Switched to camera ${nextIndex + 1}`);
-      setTimeout(() => {
-        setSuccessMessage(null);
-      }, 2000);
+
+      if (isCameraOn) {
+        setSuccessMessage(`🔄 Switched to camera ${nextIndex + 1}`);
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 2000);
+      } else {
+        setSuccessMessage(
+          `📷 Camera ${nextIndex + 1} selected (camera is off)`
+        );
+        setTimeout(() => {
+          setSuccessMessage(null);
+        }, 2000);
+      }
     } else {
       setError("No other camera is detected.");
     }
@@ -132,7 +142,9 @@ const Home = () => {
       setIsCameraOn(true);
       setIsScanning(true);
       setScanSuccess(false);
-      setSuccessMessage("📷 Camera started - Ready to scan!");
+      setSuccessMessage(
+        `📷 Camera ${currentDeviceIndex + 1} started - Ready to scan!`
+      );
       setTimeout(() => {
         setSuccessMessage(null);
       }, 2000);
@@ -220,9 +232,8 @@ const Home = () => {
 
               {devices.length > 1 && (
                 <button
-                  className="switch-camera-btn"
+                  className={`switch-camera-btn ${!isCameraOn ? 'camera-off' : ''}`}
                   onClick={switchCamera}
-                  disabled={!isCameraOn}
                 >
                   🔄 Switch Camera ({currentDeviceIndex + 1}/{devices.length})
                 </button>
