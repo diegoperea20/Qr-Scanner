@@ -1,4 +1,4 @@
-# Qr Scanner
+# Qr Scanner 
 
 <p align="justify">
 Qr Scanner where you can scan with the camera (change camera) and be redirected to the scanned url and shown the url. Or you can also select the file or drag the file and be redirected to the scanned url and shown the url.
@@ -60,5 +60,18 @@ Put this code in .eslintrc.json
 }
 ```
 
+### 📄 License
+
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+---
+
+## 👨‍💻 Author / Autor
+
+**Diego Ivan Perea Montealegre**
+
+- GitHub: [@diegoperea20](https://github.com/diegoperea20)
+
+---
 
 Created by [Diego Ivan Perea Montealegre](https://github.com/diegoperea20)
