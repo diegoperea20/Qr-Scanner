@@ -51,6 +51,59 @@ bun dev
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
 
+---
+
+## 🔧 QR Scanner CLI
+
+A command-line tool that decodes QR codes from image files using the same
+pipeline as the web app (`jsqr` first, falling back to `qrcode-reader`).
+It is ideal for agents and automation.
+
+### Usage
+
+```bash
+node cli/index.js <image-path> [more images...] [--json]
+```
+
+Or via the npm script:
+
+```bash
+npm run qrscan -- <image-path>
+```
+
+### Examples
+
+```bash
+# Single file
+node cli/index.js README-images/github-qr.png
+
+# Multiple files
+node cli/index.js qr1.png qr2.jpg
+
+# Machine-readable JSON output (best for agents)
+node cli/index.js qr1.png --json
+```
+
+### Output
+
+- Decoded results are printed to stdout: `path: result`
+- Errors / "not detected" messages go to stderr.
+- With `--json`, a structured array is printed instead:
+  `[{"file": "...", "ok": true, "result": "...", "decoder": "jsqr"}]`
+
+### Exit codes
+
+| Code | Meaning                                    |
+| ---- | ------------------------------------------ |
+| 0    | All files decoded successfully             |
+| 1    | At least one file failed or had no QR code |
+| 2    | No image paths were provided (usage error) |
+
+Supported formats: PNG, JPEG, BMP, GIF, TIFF.
+See [`cli/README.md`](cli/README.md) for details.
+
+---
+
 ## Resolve : Error Nextjs Parsing error: Cannot find module 'next/babel'
 
 Put this code in .eslintrc.json 
