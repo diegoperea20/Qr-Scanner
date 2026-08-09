@@ -23,6 +23,7 @@ const Home = () => {
   const [isDetectingDevices, setIsDetectingDevices] = useState(false);
   const [hasUserInteracted, setHasUserInteracted] = useState(false);
   const [stream, setStream] = useState(null);
+  const [isPasting, setIsPasting] = useState(false);
 
   const handleDevices = (mediaDevices) =>
     setDevices(mediaDevices.filter(({ kind }) => kind === "videoinput"));
@@ -129,6 +130,52 @@ const Home = () => {
   const handleFileUpload = (event) => {
     const file = event.target.files[0];
     processFile(file);
+  };
+
+  const pasteFromClipboard = async () => {
+    if (isPasting) return;
+    setIsPasting(true);
+    setError(null);
+
+    try {
+      if (!navigator.clipboard || !navigator.clipboard.read) {
+        throw new Error("Clipboard API not supported");
+      }
+
+      const clipboardItems = await navigator.clipboard.read();
+      let blob = null;
+
+      for (const item of clipboardItems) {
+        const imageType = item.types.find((type) =>
+          type.startsWith("image/")
+        );
+        if (imageType) {
+          blob = await item.getType(imageType);
+          break;
+        }
+      }
+
+      if (!blob) {
+        setError("No image found in clipboard. Copy an image first.");
+        return;
+      }
+
+      const file = new File([blob], "clipboard-image.png", {
+        type: blob.type || "image/png",
+      });
+      setSuccessMessage("📋 Image pasted from clipboard - Scanning...");
+      setTimeout(() => {
+        setSuccessMessage(null);
+      }, 2000);
+      processFile(file);
+    } catch (error) {
+      console.log("Clipboard error:", error);
+      setError(
+        "Clipboard access denied or not supported. Allow clipboard permission and try again."
+      );
+    } finally {
+      setIsPasting(false);
+    }
   };
 
   const detectDevicesOnUserInteraction = async () => {
@@ -388,6 +435,34 @@ const Home = () => {
     }
   }, [devices]);
 
+  useEffect(() => {
+    const handlePasteEvent = (event) => {
+      const items = event.clipboardData && event.clipboardData.items;
+      if (!items) return;
+
+      for (const item of items) {
+        if (item.type && item.type.startsWith("image/")) {
+          const file = item.getAsFile();
+          if (file) {
+            event.preventDefault();
+            setError(null);
+            setSuccessMessage("📋 Image pasted from clipboard - Scanning...");
+            setTimeout(() => {
+              setSuccessMessage(null);
+            }, 2000);
+            processFile(file);
+          }
+          break;
+        }
+      }
+    };
+
+    document.addEventListener("paste", handlePasteEvent);
+    return () => {
+      document.removeEventListener("paste", handlePasteEvent);
+    };
+  }, []);
+
   // Limpiar stream al desmontar
   useEffect(() => {
     return () => {
@@ -434,6 +509,21 @@ const Home = () => {
                   🔄 Switch Camera ({currentDeviceIndex + 1}/{devices.length})
                 </button>
               )}
+            </div>
+
+            <div className="clipboard-controls">
+              <button
+                className="clipboard-btn"
+                onClick={pasteFromClipboard}
+                disabled={isPasting}
+                aria-label="Paste image from clipboard"
+                title="Paste image from clipboard"
+              >
+                {isPasting ? "⏳" : "📋"}
+              </button>
+              <p className="clipboard-text">
+                Paste image from clipboard (Ctrl+V)
+              </p>
             </div>
 
             {isCameraOn && (

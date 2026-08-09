@@ -6,9 +6,11 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "qrscan": "node cli/index.js"
   },
   "dependencies": {
+    "jimp": "^0.22.12",
     "jsqr": "^1.4.0",
     "next": "14.2.4",
     "qrcode-reader": "^1.0.4",
