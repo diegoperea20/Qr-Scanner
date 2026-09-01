@@ -9,9 +9,7 @@ Qr Scanner where you can scan with the camera (change camera) and be redirected 
   <img src="README-images/home.png" alt="Step1">
 </p>
 
-<p align="center">
-  <img src="README-images/camera.png" alt="Step5">
-</p>
+
 
 <p align="center">
   <img src="README-images/scanned.png" alt="Step5">

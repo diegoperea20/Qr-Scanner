@@ -1,7 +1,17 @@
-import { Inter } from "next/font/google";
+import { Inter, Instrument_Sans, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"] });
+const inter = Inter({ subsets: ["latin"], variable: "--font-body" });
+const instrument = Instrument_Sans({
+  subsets: ["latin"],
+  variable: "--font-display",
+  weight: ["500", "600", "700"],
+});
+const mono = JetBrains_Mono({
+  subsets: ["latin"],
+  variable: "--font-mono",
+  weight: ["400", "500"],
+});
 
 const SITE_URL = "https://qr-scanner-online.vercel.app";
 
@@ -73,7 +83,7 @@ export const metadata = {
 };
 
 export const viewport = {
-  themeColor: "#1b1b1b",
+  themeColor: "#121412",
   colorScheme: "dark",
 };
 
@@ -103,7 +113,7 @@ export default function RootLayout({ children }) {
 
   return (
     <html lang="en">
-      <body className={inter.className}>
+      <body className={`${inter.variable} ${instrument.variable} ${mono.variable}`}>
         <script
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
